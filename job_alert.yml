@@ -1,0 +1,43 @@
+name: Job Alert Agent
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+jobs:
+  run-job-alert:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Pull latest changes first
+        run: git pull origin main
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Job Monitor
+        env:
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python job_monitor.py
+
+      - name: Save seen jobs back to repo
+        run: |
+          git config --global user.name  "Job Alert Bot"
+          git config --global user.email "bot@github.com"
+          git add seen_jobs.json
+          git diff --cached --quiet || git commit -m "chore: update seen jobs [skip ci]"
+          git push
